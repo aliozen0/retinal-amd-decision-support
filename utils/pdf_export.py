@@ -8,6 +8,7 @@ Cross-platform Unicode desteği: Windows (Arial), Linux (DejaVu Sans).
 """
 
 import os
+import re
 import tempfile
 import numpy as np
 from PIL import Image as PILImage
@@ -17,6 +18,104 @@ from datetime import datetime, timezone, timedelta
 # Turkiye saat dilimi (GMT+3)
 TZ_TR = timezone(timedelta(hours=3))
 from typing import List, Optional
+
+
+def _clean_llm_markdown(text: str) -> str:
+    """LLM ciktisindaki markdown isarelerini temizler (tablolar haric)."""
+    clean = text
+    clean = re.sub(r'^#{1,6}\s+', '', clean, flags=re.MULTILINE)
+    for marker in ["**", "___", "***", "`"]:
+        clean = clean.replace(marker, "")
+    clean = re.sub(r'^\s*[-*+]\s+', '  ', clean, flags=re.MULTILINE)
+    clean = re.sub(r'^\s*\d+\.\s+', '  ', clean, flags=re.MULTILINE)
+    emoji_pattern = re.compile(
+        "[\U0001F600-\U0001F64F\U0001F300-\U0001F5FF\U0001F680-\U0001F6FF"
+        "\U0001F1E0-\U0001F1FF\U00002702-\U000027B0\U000024C2-\U0001F251"
+        "\U0001f926-\U0001f937\U00010000-\U0010ffff\u2600-\u26FF\u2700-\u27BF"
+        "\u23E9-\u23F3\u23F8-\u23FA\u200d\uFE0F\u20E3\u2640\u2642\u2695"
+        "\u26A1\u2B50\u2B55\u2934\u2935\u25AA\u25AB\u25FB-\u25FE]+",
+        flags=re.UNICODE,
+    )
+    clean = emoji_pattern.sub("", clean)
+    clean = clean.replace("\u2014", "-").replace("\u2013", "-")
+    return clean
+
+
+def _render_llm_text_to_pdf(pdf, text: str):
+    """
+    LLM ciktisini PDF'e yazar. Markdown tablolarini gercek PDF tablolarina
+    donusturur, diger satirlari normal metin olarak yazar.
+    """
+    clean = _clean_llm_markdown(text)
+    lines = clean.strip().split("\n")
+
+    i = 0
+    while i < len(lines):
+        line = lines[i].strip()
+
+        # Markdown tablo satirini tespit et (| ile baslar ve biter)
+        if line.startswith("|") and line.endswith("|"):
+            # Tablo blogu topla
+            table_lines = []
+            while i < len(lines) and lines[i].strip().startswith("|") and lines[i].strip().endswith("|"):
+                row = lines[i].strip()
+                # Ayiric satiri atla (|---|---|)
+                if not re.match(r'^\|[\s\-:| ]+\|$', row):
+                    cells = [c.strip() for c in row.strip("|").split("|")]
+                    table_lines.append(cells)
+                i += 1
+
+            if table_lines:
+                _render_pdf_table(pdf, table_lines)
+                pdf.ln(3)
+        elif line:
+            # Normal metin satiri
+            pdf._set("", 9)
+            pdf.set_text_color(51, 65, 85)
+            pdf.multi_cell(180, 5, line, align="L")
+            pdf.ln(1)
+            i += 1
+        else:
+            i += 1
+
+
+def _render_pdf_table(pdf, rows: list):
+    """
+    Satirlardan olusan bir tabloyu PDF'e cizer.
+    rows[0] = baslik satiri, rows[1:] = veri satirlari.
+    """
+    if not rows:
+        return
+
+    num_cols = len(rows[0])
+    # Her kolona esit genislik ver (toplam 180mm)
+    available_w = 180
+    col_w = available_w / num_cols
+    # Ama cok dar kolonlar olmasin, min 25mm
+    col_w = max(col_w, 25)
+    total_w = col_w * num_cols
+    x_start = (210 - total_w) / 2
+
+    # Baslik satiri
+    if rows:
+        pdf._set("B", 8)
+        pdf.set_fill_color(248, 250, 252)
+        pdf.set_text_color(51, 65, 85)
+        pdf.set_draw_color(203, 213, 225)
+        pdf.set_x(x_start)
+        for cell in rows[0]:
+            pdf.cell(col_w, 6, cell[:30], border=1, fill=True, align="C")
+        pdf.ln()
+
+    # Veri satirlari
+    pdf._set("", 8)
+    pdf.set_text_color(71, 85, 105)
+    for row in rows[1:]:
+        pdf.set_x(x_start)
+        for j, cell in enumerate(row):
+            # Hucre verisi fazla uzunsa kes
+            pdf.cell(col_w, 6, cell[:30], border=1, align="C")
+        pdf.ln()
 
 
 # ============================================================================
@@ -365,34 +464,11 @@ def generate_pdf_report(
     # ====================================================
     pdf.section_title("Klinik Degerlendirme Raporu")
 
-    # Markdown sembollerini temizle
-    clean_report = report_text
-    for marker in ["**", "---", "*"]:
-        clean_report = clean_report.replace(marker, "")
+    # Markdown sembollerini temizle (LLM ciktisi icin genisletildi)
+    clean_report = _clean_llm_markdown(report_text)
 
-    # Emoji temizligi
-    import re
-    emoji_pattern = re.compile(
-        "[\U0001F600-\U0001F64F\U0001F300-\U0001F5FF\U0001F680-\U0001F6FF"
-        "\U0001F1E0-\U0001F1FF\U00002702-\U000027B0\U000024C2-\U0001F251"
-        "\U0001f926-\U0001f937\U00010000-\U0010ffff\u2600-\u26FF\u2700-\u27BF"
-        "\u23E9-\u23F3\u23F8-\u23FA\u200d\uFE0F\u20E3\u2640\u2642\u2695"
-        "\u26A1\u2B50\u2B55\u2934\u2935\u25AA\u25AB\u25FB-\u25FE]+",
-        flags=re.UNICODE,
-    )
-    clean_report = emoji_pattern.sub("", clean_report)
-
-    # Em dash -> tire
-    clean_report = clean_report.replace("\u2014", "-").replace("\u2013", "-")
-
-    # Rapor metnini yaz
-    pdf._set("", 9)
-    pdf.set_text_color(51, 65, 85)
-
-    lines = [line.strip() for line in clean_report.strip().split("\n") if line.strip()]
-    for line in lines:
-        pdf.multi_cell(180, 5, line, align="L")
-        pdf.ln(1)
+    # Rapor metnini yaz (tablolar dahil)
+    _render_llm_text_to_pdf(pdf, report_text)
 
     pdf.ln(4)
 
@@ -427,6 +503,7 @@ def generate_pdf_report(
 def generate_comparative_pdf(
     analyses: list,
     patient_info: Optional[dict] = None,
+    llm_report: Optional[str] = None,
 ) -> bytes:
     """
     Birden fazla analizi karsilastirmali PDF raporunda uretir.
@@ -571,6 +648,13 @@ def generate_comparative_pdf(
                 f"Guven fark: {conf_diff:+.1f}%")
 
         pdf.ln(2)
+
+    # ── AI Karsilastirma Raporu (LLM) ──
+    if llm_report:
+        pdf.add_page()
+        pdf.section_title("Yapay Zeka Karsilastirma Raporu")
+        _render_llm_text_to_pdf(pdf, llm_report)
+        pdf.ln(4)
 
     # ── Sorumluluk Reddi ──
     pdf.set_draw_color(226, 232, 240)

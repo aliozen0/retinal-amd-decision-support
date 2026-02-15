@@ -17,6 +17,7 @@ import utils.preprocessing as preprocessing
 from utils.gradcam import generate_gradcam, overlay_gradcam
 from utils.reporting import generate_clinical_report
 from utils.pdf_export import generate_pdf_report, generate_comparative_pdf
+from utils.llm_reporting import is_llm_available, generate_llm_report, generate_llm_comparative_report
 from models import load_model, get_classes, get_target_layer
 from utils.database import (
     is_db_available, save_analysis, get_patient_analyses,
@@ -43,63 +44,69 @@ st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
 :root{
-  --bg:#020617;--card:rgba(15,23,42,.6);--card-h:rgba(30,41,59,.7);
-  --bdr:rgba(148,163,184,.08);--bdr-a:rgba(99,102,241,.25);
-  --t1:#f1f5f9;--t2:#94a3b8;--tm:#64748b;
-  --acc:#6366f1;--acc-l:#a5b4fc;
-  --ok:#22c55e;--ng:#ef4444;--warn:#f59e0b;
+  --bg:#f8fafc;--card:#ffffff;--card-h:#f1f5f9;
+  --bdr:rgba(100,116,139,.2);--bdr-a:rgba(79,70,229,.3);
+  --t1:#0f172a;--t2:#1e293b;--tm:#334155;
+  --acc:#4f46e5;--acc-l:#4338ca;
+  --ok:#15803d;--ng:#b91c1c;--warn:#b45309;
   --r:16px;
 }
 .stApp{font-family:'Inter',sans-serif;background:var(--bg)}
-[data-testid="stSidebar"]{background:linear-gradient(180deg,#0f172a,#020617);border-right:1px solid var(--bdr)}
-header[data-testid="stHeader"]{background:transparent}
-h1,h2,h3,h4{color:var(--t1)!important}
-p,span,label{color:var(--t2)}
+[data-testid="stSidebar"]{background:linear-gradient(180deg,#ffffff,#f1f5f9);border-right:1px solid var(--bdr)}
+header[data-testid="stHeader"]{background:rgba(248,250,252,.9);backdrop-filter:blur(8px)}
+h1,h2,h3,h4{color:var(--t1)!important;font-weight:700!important}
+p,span,label,li{color:var(--t2)!important}
+.stMarkdown p{color:var(--t2)!important}
+.stCaption p, [data-testid="stCaptionContainer"] p{color:var(--tm)!important}
+[data-testid="stTab"] button p{color:var(--t1)!important;font-weight:600!important}
 .stButton button{border-radius:10px;font-weight:600;transition:.2s}
-.stButton button:hover{transform:translateY(-1px)}
+.stButton button:hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(79,70,229,.15)}
+.stTextInput label, .stSelectbox label, .stFileUploader label{color:var(--t1)!important;font-weight:500!important}
+.stExpander summary span{color:var(--t1)!important;font-weight:600!important}
 
 .hero{
-  background:linear-gradient(135deg,rgba(99,102,241,.08),rgba(139,92,246,.04));
-  border:1px solid var(--bdr-a);border-radius:var(--r);padding:1rem 1.5rem;
+  background:linear-gradient(135deg,rgba(79,70,229,.08),rgba(139,92,246,.04));
+  border:1px solid rgba(79,70,229,.2);border-radius:var(--r);padding:1rem 1.5rem;
   margin-bottom:1rem;display:flex;justify-content:space-between;align-items:center;
 }
-.hero .name{font-size:1.25rem;font-weight:700;color:var(--t1);margin:0}
-.hero .meta{color:var(--t2);font-size:.82rem;margin:.2rem 0 0}
-.hero .badge{background:rgba(34,197,94,.12);color:#86efac;padding:.3rem .8rem;
-  border-radius:100px;font-size:.72rem;font-weight:600;border:1px solid rgba(34,197,94,.2)}
+.hero .name{font-size:1.25rem;font-weight:700;color:var(--t1)!important;margin:0}
+.hero .meta{color:var(--tm)!important;font-size:.82rem;margin:.2rem 0 0}
+.hero .badge{background:rgba(21,128,61,.1);color:#15803d;padding:.3rem .8rem;
+  border-radius:100px;font-size:.72rem;font-weight:700;border:1px solid rgba(21,128,61,.2)}
 
 .dx-card{border-radius:var(--r);padding:1.2rem;margin:.8rem 0;text-align:center}
-.dx-card.ok{background:rgba(34,197,94,.05);border:1px solid rgba(34,197,94,.18)}
-.dx-card.ng{background:rgba(239,68,68,.05);border:1px solid rgba(239,68,68,.18)}
-.dx-card .dx{font-size:1.6rem;font-weight:800;margin:0;letter-spacing:-.02em}
-.dx-card .sub{color:var(--t2);font-size:.85rem;margin:.2rem 0 0}
+.dx-card.ok{background:rgba(21,128,61,.06);border:1px solid rgba(21,128,61,.2)}
+.dx-card.ng{background:rgba(185,28,28,.06);border:1px solid rgba(185,28,28,.2)}
+.dx-card .dx{font-size:1.6rem;font-weight:800;margin:0;letter-spacing:-.02em;color:var(--t1)!important}
+.dx-card .sub{color:var(--tm)!important;font-size:.85rem;margin:.2rem 0 0}
 
 .cmp-col{background:var(--card);border:1px solid var(--bdr);border-radius:var(--r);
-  padding:.8rem;text-align:center}
-.cmp-col .tag{display:inline-block;background:rgba(99,102,241,.1);color:var(--acc-l);
-  padding:.15rem .6rem;border-radius:100px;font-size:.68rem;font-weight:600;margin-bottom:.4rem}
-.cmp-col h4{margin:.2rem 0;color:var(--t1)}
-.cmp-col .conf{color:var(--t2);font-size:.82rem;margin:0}
+  padding:.8rem;text-align:center;box-shadow:0 1px 4px rgba(0,0,0,.06)}
+.cmp-col .tag{display:inline-block;background:rgba(79,70,229,.1);color:var(--acc)!important;
+  padding:.15rem .6rem;border-radius:100px;font-size:.68rem;font-weight:700;margin-bottom:.4rem}
+.cmp-col h4{margin:.2rem 0;color:var(--t1)!important}
+.cmp-col .conf{color:var(--tm)!important;font-size:.82rem;margin:0}
 
-.sec-title{color:var(--t1);font-size:1.05rem;font-weight:700;margin-bottom:.6rem;
+.sec-title{color:var(--t1)!important;font-size:1.05rem;font-weight:700;margin-bottom:.6rem;
   padding-left:.7rem;border-left:3px solid var(--acc)}
 
 .hist-row{display:flex;justify-content:space-between;align-items:center;
   background:var(--card);border:1px solid var(--bdr);border-radius:10px;
-  padding:.6rem .8rem;margin-bottom:.35rem;transition:.2s}
+  padding:.6rem .8rem;margin-bottom:.35rem;transition:.2s;box-shadow:0 1px 2px rgba(0,0,0,.04)}
 .hist-row:hover{border-color:var(--bdr-a);background:var(--card-h)}
-.hist-row .dt{color:var(--tm);font-size:.72rem}
-.hist-row .cls{color:var(--t1);font-weight:600;font-size:.85rem}
-.hist-row .sc{color:var(--acc-l);font-size:.82rem}
+.hist-row .dt{color:var(--tm)!important;font-size:.72rem}
+.hist-row .cls{color:var(--t1)!important;font-weight:700;font-size:.85rem}
+.hist-row .sc{color:var(--acc)!important;font-size:.82rem;font-weight:600}
 
 .pt-card{background:var(--card);border:1px solid var(--bdr);
   border-radius:12px;padding:.8rem 1rem;margin-bottom:.4rem;
-  display:flex;justify-content:space-between;align-items:center;transition:.2s}
+  display:flex;justify-content:space-between;align-items:center;transition:.2s;
+  box-shadow:0 1px 2px rgba(0,0,0,.04)}
 .pt-card:hover{border-color:var(--bdr-a);background:var(--card-h)}
-.pt-card .nm{color:var(--t1);font-weight:600;font-size:.9rem}
-.pt-card .no{color:var(--tm);font-size:.78rem}
+.pt-card .nm{color:var(--t1)!important;font-weight:700;font-size:.9rem}
+.pt-card .no{color:var(--tm)!important;font-size:.78rem}
 
-.empty-box{text-align:center;padding:2.5rem 1rem;color:var(--tm)}
+.empty-box{text-align:center;padding:2.5rem 1rem;color:var(--tm)!important}
 .empty-box .ic{font-size:2.5rem;margin-bottom:.3rem}
 </style>
 """, unsafe_allow_html=True)
@@ -161,8 +168,10 @@ with st.sidebar:
                     st.rerun()
 
 # ══════════════════════════════════════════════════════════════════════════════
-# ANA SEKMAs
+# ANA SEKMELER
 # ══════════════════════════════════════════════════════════════════════════════
+
+# Hasta seçim ekranına yönlendirme (JS ile tab tıklama)
 tab_analysis, tab_patients = st.tabs(["🔬 Analiz Paneli", "🏥 Hasta Yönetimi"])
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -184,7 +193,25 @@ with tab_analysis:
         </div>
         """, unsafe_allow_html=True)
     else:
-        st.info("👈 Sidebar'dan veya '🏥 Hasta Yönetimi' sekmesinden bir hasta seçin. Hasta seçmeden de tek seferlik analiz yapabilirsiniz.")
+        st.info("👈 Hasta seçmeden de tek seferlik analiz yapabilirsiniz.")
+        # Hasta hızlı seçici — doğrudan analiz sekmesinde
+        if db_ok:
+            if st.button("🏥 Hasta Seç", use_container_width=True, type="primary"):
+                st.session_state["show_patient_picker"] = True
+
+            if st.session_state.get("show_patient_picker"):
+                all_p = get_all_patients()
+                if all_p:
+                    opts = {f"{p['ad']} {p['soyad']} · {p['dosya_no']}": p for p in all_p}
+                    chosen = st.selectbox("Hasta seçin:", [""] + list(opts.keys()), key="inline_pick")
+                    if chosen and chosen in opts:
+                        st.session_state["selected_patient"] = opts[chosen]
+                        st.session_state["current_result"] = None
+                        st.session_state["compare_selections"] = []
+                        st.session_state["show_patient_picker"] = False
+                        st.rerun()
+                else:
+                    st.caption("Henüz kayıtlı hasta yok. '🏥 Hasta Yönetimi' sekmesinden ekleyin.")
 
     # ── 2 Kolon ──
     col_left, col_right = st.columns([3, 2], gap="large")
@@ -314,33 +341,73 @@ with tab_analysis:
             )
             st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
 
-            # Rapor & PDF yan yana
-            c_rep, c_pdf = st.columns([3, 2])
-            with c_rep:
-                with st.expander("📋 Klinik Rapor", expanded=False):
-                    st.markdown(result["report_text"])
-            with c_pdf:
-                try:
-                    hist = get_patient_analyses(patient["id"]) if patient and db_ok else None
-                    pdf_bytes = generate_pdf_report(
-                        original_image=result["display_image"],
-                        gradcam_image=result["overlaid_image"],
+            # Rapor & PDF & AI
+            with st.expander("📋 Klinik Rapor (Kural Tabanlı)", expanded=False):
+                st.markdown(result["report_text"])
+
+            # 🤖 LLM Rapor
+            if is_llm_available():
+                if st.button("🤖 Yapay Zekâ ile Detaylı Rapor Üret", key="llm_single", use_container_width=True):
+                    import time
+                    progress_bar = st.progress(0, text="🧠 Yapay zekâ modeli hazırlanıyor…")
+                    for i in range(30):
+                        time.sleep(0.04)
+                        progress_bar.progress(i + 1, text="🧠 Yapay zekâ modeli hazırlanıyor…")
+                    progress_bar.progress(35, text="📡 io.net sunucusuna bağlanılıyor…")
+                    for i in range(35, 55):
+                        time.sleep(0.03)
+                        progress_bar.progress(i + 1, text="📡 io.net sunucusuna bağlanılıyor…")
+                    progress_bar.progress(60, text="✍️ DeepSeek-V3.2 rapor yazıyor…")
+
+                    llm_text = generate_llm_report(
                         predicted_class=result["predicted_class"],
                         confidence=result["confidence"],
+                        probabilities=result["probabilities"],
                         class_names=result["class_names"],
-                        probabilities=np.array(result["probabilities"]),
                         model_name=result["model_name"],
-                        report_text=result["report_text"],
                         patient_info=patient,
-                        analysis_history=hist[:5] if hist else None,
                     )
-                    st.download_button(
-                        "📄 PDF İndir", data=pdf_bytes,
-                        file_name=f"Rapor_{result['predicted_class']}_{datetime.now(TZ_TR).strftime('%Y%m%d_%H%M')}.pdf",
-                        mime="application/pdf", type="primary", use_container_width=True,
-                    )
-                except Exception as e:
-                    st.error(f"PDF hatası: {e}")
+
+                    for i in range(60, 95):
+                        time.sleep(0.02)
+                        progress_bar.progress(i + 1, text="✍️ DeepSeek-V3.2 rapor yazıyor…")
+                    progress_bar.progress(100, text="✅ Rapor hazır!")
+                    time.sleep(0.5)
+                    progress_bar.empty()
+
+                    if llm_text:
+                        st.session_state["llm_single_report"] = llm_text
+                        st.rerun()
+
+                if st.session_state.get("llm_single_report"):
+                    st.markdown("---")
+                    st.markdown("✨ **🤖 DeepSeek-V3.2 Klinik Rapor**")
+                    st.markdown(st.session_state["llm_single_report"])
+                    st.markdown("---")
+
+            # PDF İndir
+            try:
+                hist = get_patient_analyses(patient["id"]) if patient and db_ok else None
+                report_for_pdf = st.session_state.get("llm_single_report") or result["report_text"]
+                pdf_bytes = generate_pdf_report(
+                    original_image=result["display_image"],
+                    gradcam_image=result["overlaid_image"],
+                    predicted_class=result["predicted_class"],
+                    confidence=result["confidence"],
+                    class_names=result["class_names"],
+                    probabilities=np.array(result["probabilities"]),
+                    model_name=result["model_name"],
+                    report_text=report_for_pdf,
+                    patient_info=patient,
+                    analysis_history=hist[:5] if hist else None,
+                )
+                st.download_button(
+                    "📄 PDF İndir", data=pdf_bytes,
+                    file_name=f"Rapor_{result['predicted_class']}_{datetime.now(TZ_TR).strftime('%Y%m%d_%H%M')}.pdf",
+                    mime="application/pdf", type="primary", use_container_width=True,
+                )
+            except Exception as e:
+                st.error(f"PDF hatası: {e}")
 
     # ────────── SAĞ: GEÇMİŞ ──────────
     with col_right:
@@ -483,8 +550,46 @@ with tab_analysis:
             else:
                 st.success(f"✅ Stabil ({n['predicted_class']}, fark: {diff:+.1f}%)")
 
+        # 🤖 LLM Karşılaştırma Raporu
+        if is_llm_available():
+            if st.button("🤖 AI ile Karşılaştırma Raporu Yaz", key="llm_cmp", use_container_width=True):
+                import time
+                pb = st.progress(0, text="🧠 Yapay zekâ hazırlanıyor…")
+                for i in range(25):
+                    time.sleep(0.04)
+                    pb.progress(i + 1, text="🧠 Yapay zekâ hazırlanıyor…")
+                pb.progress(30, text="📡 io.net bağlantısı kuruluyor…")
+                for i in range(30, 50):
+                    time.sleep(0.03)
+                    pb.progress(i + 1, text="📡 io.net bağlantısı kuruluyor…")
+                pb.progress(55, text="🔬 DeepSeek karşılaştırma analizi yapıyor…")
+
+                llm_cmp = generate_llm_comparative_report(
+                    analyses=items,
+                    patient_info=patient,
+                )
+
+                for i in range(55, 95):
+                    time.sleep(0.02)
+                    pb.progress(i + 1, text="🔬 DeepSeek karşılaştırma analizi yapıyor…")
+                pb.progress(100, text="✅ Karşılaştırma raporu hazır!")
+                time.sleep(0.5)
+                pb.empty()
+
+                if llm_cmp:
+                    st.session_state["llm_cmp_report"] = llm_cmp
+                    st.rerun()
+
+            if st.session_state.get("llm_cmp_report"):
+                st.markdown("---")
+                st.markdown("✨ **🤖 DeepSeek-V3.2 Karşılaştırma Raporu**")
+                st.markdown(st.session_state["llm_cmp_report"])
+                st.markdown("---")
+
+        # PDF
         try:
-            cpdf = generate_comparative_pdf(analyses=items, patient_info=patient)
+            llm_cmp_text = st.session_state.get("llm_cmp_report")
+            cpdf = generate_comparative_pdf(analyses=items, patient_info=patient, llm_report=llm_cmp_text)
             st.download_button("📊 Karşılaştırma PDF", data=cpdf,
                                file_name=f"Karsilastirma_{datetime.now(TZ_TR).strftime('%Y%m%d_%H%M')}.pdf",
                                mime="application/pdf", use_container_width=True)
