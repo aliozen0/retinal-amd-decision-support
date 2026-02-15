@@ -9,7 +9,7 @@ Loglama ve timeout desteği içerir.
 import streamlit as st
 import logging
 from openai import OpenAI
-from typing import Optional
+from typing import Optional, List
 
 # ── Loglama ──
 logger = logging.getLogger("llm_reporting")
@@ -72,7 +72,7 @@ def _get_client() -> Optional[OpenAI]:
         return None
 
 
-def get_available_models() -> list[str]:
+def get_available_models() -> List[str]:
     """Kullanılabilir model listesini döndürür."""
     return AVAILABLE_MODELS.copy()
 
