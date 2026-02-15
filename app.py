@@ -395,10 +395,8 @@ with tab_analysis:
                         st.rerun()
 
                 if st.session_state.get("llm_single_report"):
-                    st.markdown("---")
-                    st.markdown("✨ **🤖 DeepSeek-V3.2 Klinik Rapor**")
-                    st.markdown(st.session_state["llm_single_report"])
-                    st.markdown("---")
+                    with st.expander("✨ 🤖 Yapay Zekâ Klinik Rapor", expanded=True):
+                        st.markdown(st.session_state["llm_single_report"])
 
             # PDF İndir
             try:
@@ -608,10 +606,8 @@ with tab_analysis:
                     st.rerun()
 
             if st.session_state.get("llm_cmp_report"):
-                st.markdown("---")
-                st.markdown("✨ **🤖 DeepSeek-V3.2 Karşılaştırma Raporu**")
-                st.markdown(st.session_state["llm_cmp_report"])
-                st.markdown("---")
+                with st.expander("✨ 🤖 Yapay Zekâ Karşılaştırma Raporu", expanded=True):
+                    st.markdown(st.session_state["llm_cmp_report"])
 
         # PDF
         try:
