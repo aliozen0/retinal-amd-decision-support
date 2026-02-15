@@ -1,0 +1,45 @@
+# ── Python ──
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# ── Sanal Ortam ──
+venv/
+env/
+.venv/
+.env/
+
+# ── IDE / Editör ──
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ── OS Dosyaları ──
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ── Dağıtım / Build ──
+dist/
+build/
+*.egg-info/
+*.egg
+
+# ── Testler ──
+.pytest_cache/
+.coverage
+htmlcov/
+
+# ── Ortam Değişkenleri ──
+.env
+.env.local
+
+# ── Geçici Dosyalar ──
+*.tmp
+*.log
+
+# ── Agent / Gemini ──
+.agent/
