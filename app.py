@@ -462,7 +462,7 @@ if uploaded_file is not None:
         col_preview, col_info = st.columns([1, 1], gap="large")
         with col_preview:
             st.markdown('<div class="image-card"><div class="image-card-title">🖼️ Ön İzleme</div></div>', unsafe_allow_html=True)
-            st.image(image, use_container_width=True)
+            st.image(image, width="stretch")
         with col_info:
             st.markdown(f"""
             <div class="image-card" style="padding:1.5rem;">
@@ -535,19 +535,19 @@ if uploaded_file is not None:
         col_orig, col_gradcam = st.columns([1, 1], gap="large")
         with col_orig:
             st.markdown('<div class="image-card"><div class="image-card-title">🖼️ Orijinal Görüntü</div></div>', unsafe_allow_html=True)
-            st.image(display_image, use_container_width=True)
+            st.image(display_image, width="stretch")
         with col_gradcam:
             st.markdown(f'<div class="image-card"><div class="image-card-title">🔥 Grad-CAM · {predicted_class}</div></div>', unsafe_allow_html=True)
             if gradcam_success:
-                st.image(overlaid_image, use_container_width=True)
+                st.image(overlaid_image, width="stretch")
             else:
-                st.image(display_image, use_container_width=True)
+                st.image(display_image, width="stretch")
 
         st.markdown("<br>", unsafe_allow_html=True)
 
         # Olasılık Grafiği
         fig = create_confidence_chart(classes, probabilities, predicted_class)
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
         # Klinik Rapor
         st.markdown('<div class="report-card"><h3>📋 Klinik Analiz Raporu</h3></div>', unsafe_allow_html=True)

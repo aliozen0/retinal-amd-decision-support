@@ -1,10 +1,10 @@
 """
-HÜMA-MED PDF Raporlama Modülü
-==============================
+Retinal AMD Clinical Decision Support — PDF Raporlama Modülü
+=============================================================
 Analiz sonuçlarını (orijinal görüntü, Grad-CAM ısı haritası,
 olasılık değerleri ve klinik rapor) profesyonel PDF formatında dışa aktarır.
 
-Yazar: HÜMA-MED Ekibi
+Cross-platform Unicode desteği: Windows (Arial), Linux (DejaVu Sans).
 """
 
 import os
@@ -13,62 +13,94 @@ import numpy as np
 from PIL import Image as PILImage
 from fpdf import FPDF
 from datetime import datetime
-from typing import List
+from typing import List, Optional
 
 
 # ============================================================================
-# Windows sistem fontu — Türkçe karakter desteği için
+# Cross-platform font arama — hem Windows hem Linux (Streamlit Cloud) desteği
 # ============================================================================
-ARIAL_FONT_PATH = r"C:\Windows\Fonts\arial.ttf"
-ARIAL_BOLD_PATH = r"C:\Windows\Fonts\arialbd.ttf"
-ARIAL_ITALIC_PATH = r"C:\Windows\Fonts\ariali.ttf"
+def _find_font(candidates: list) -> Optional[str]:
+    """Verilen aday yollarından ilk mevcut olanı döndürür."""
+    for path in candidates:
+        if os.path.exists(path):
+            return path
+    return None
+
+
+# Regular font adayları
+_REGULAR_CANDIDATES = [
+    r"C:\Windows\Fonts\arial.ttf",                              # Windows
+    "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",          # Debian/Ubuntu
+    "/usr/share/fonts/TTF/DejaVuSans.ttf",                      # Arch
+    "/usr/share/fonts/dejavu-sans-fonts/DejaVuSans.ttf",        # Fedora
+]
+
+_BOLD_CANDIDATES = [
+    r"C:\Windows\Fonts\arialbd.ttf",
+    "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+    "/usr/share/fonts/TTF/DejaVuSans-Bold.ttf",
+    "/usr/share/fonts/dejavu-sans-fonts/DejaVuSans-Bold.ttf",
+]
+
+_ITALIC_CANDIDATES = [
+    r"C:\Windows\Fonts\ariali.ttf",
+    "/usr/share/fonts/truetype/dejavu/DejaVuSans-Oblique.ttf",
+    "/usr/share/fonts/TTF/DejaVuSans-Oblique.ttf",
+    "/usr/share/fonts/dejavu-sans-fonts/DejaVuSans-Oblique.ttf",
+]
+
+FONT_REGULAR = _find_font(_REGULAR_CANDIDATES)
+FONT_BOLD = _find_font(_BOLD_CANDIDATES)
+FONT_ITALIC = _find_font(_ITALIC_CANDIDATES)
 
 
 class HumaMedPDF(FPDF):
-    """HÜMA-MED için profesyonel PDF rapor sınıfı. Unicode destekli."""
+    """Profesyonel PDF rapor sinifi. Cross-platform Unicode destekli."""
 
     def __init__(self) -> None:
         super().__init__()
         self.set_auto_page_break(auto=True, margin=25)
 
-        # Unicode destekli Arial fontunu kaydet
-        if os.path.exists(ARIAL_FONT_PATH):
-            self.add_font("Arial-TR", "", ARIAL_FONT_PATH, uni=True)
-        if os.path.exists(ARIAL_BOLD_PATH):
-            self.add_font("Arial-TR", "B", ARIAL_BOLD_PATH, uni=True)
-        if os.path.exists(ARIAL_ITALIC_PATH):
-            self.add_font("Arial-TR", "I", ARIAL_ITALIC_PATH, uni=True)
+        # Unicode destekli fontu kaydet (platform-agnostic)
+        self._font_name = "Helvetica"  # fallback
 
-        self._font_name = "Arial-TR" if os.path.exists(ARIAL_FONT_PATH) else "Helvetica"
+        if FONT_REGULAR:
+            self.add_font("UniFont", "", FONT_REGULAR, uni=True)
+            self._font_name = "UniFont"
+        if FONT_BOLD:
+            self.add_font("UniFont", "B", FONT_BOLD, uni=True)
+        if FONT_ITALIC:
+            self.add_font("UniFont", "I", FONT_ITALIC, uni=True)
 
     def _set(self, style: str = "", size: int = 10) -> None:
-        """Kısa font ayar yardımcısı."""
+        """Kisa font ayar yardimcisi."""
         self.set_font(self._font_name, style, size)
 
     def header(self) -> None:
-        """Sayfa üst bilgisi — profesyonel beyaz tasarım."""
-        # Üst çizgi — indigo accent
+        """Sayfa ust bilgisi — profesyonel beyaz tasarim."""
+        # Ust cizgi — indigo accent
         self.set_fill_color(79, 70, 229)
         self.rect(0, 0, 210, 3, "F")
 
-        # Logo & başlık
+        # Logo & baslik
         self.set_y(8)
         self._set("B", 16)
         self.set_text_color(30, 41, 59)
-        self.cell(0, 8, "HÜMA-MED", ln=False)
+        self.cell(0, 8, "Retinal AMD Klinik Karar Destek", ln=False)
 
-        # Sağ üst — tarih
+        # Sag ust — tarih
         self._set("", 8)
         self.set_text_color(100, 116, 139)
-        self.cell(0, 8, datetime.now().strftime("%d.%m.%Y — %H:%M"), align="R")
+        date_str = datetime.now().strftime("%d.%m.%Y - %H:%M")
+        self.cell(0, 8, date_str, align="R")
         self.ln(6)
 
-        # Alt başlık
+        # Alt baslik
         self._set("", 9)
         self.set_text_color(100, 116, 139)
         self.cell(0, 5, "Klinik Karar Destek Raporu", ln=True)
 
-        # Ayırıcı çizgi
+        # Ayirici cizgi
         self.set_draw_color(226, 232, 240)
         self.line(10, self.get_y() + 3, 200, self.get_y() + 3)
         self.ln(8)
@@ -83,17 +115,17 @@ class HumaMedPDF(FPDF):
         self.set_text_color(148, 163, 184)
         self.cell(
             0, 5,
-            "Bu rapor yapay zekâ destekli bir analiz sonucudur ve "
-            "kesin tanı niteliği taşımaz. Klinik karar sürecinde uzman hekim "
-            "değerlendirmesi esastır.",
+            "Bu rapor yapay zeka destekli bir analiz sonucudur ve "
+            "kesin tani niteligi tasimaz. Klinik karar surecinde uzman hekim "
+            "degerlendirmesi esastir.",
             align="C",
         )
         self.ln(3)
         self._set("", 7)
-        self.cell(0, 5, f"HÜMA-MED v1.0  |  Sayfa {self.page_no()}/{{nb}}", align="C")
+        self.cell(0, 5, f"Retinal AMD v1.0  |  Sayfa {self.page_no()}/{{nb}}", align="C")
 
     def section_title(self, title: str) -> None:
-        """Bölüm başlığı — sol kenar indigo çizgili."""
+        """Bolum basligi — sol kenar indigo cizgili."""
         self.ln(4)
         # Sol accent bar
         y = self.get_y()
@@ -118,27 +150,27 @@ def generate_pdf_report(
     report_text: str,
 ) -> bytes:
     """
-    Analiz sonuçlarını profesyonel PDF formatında üretir.
+    Analiz sonuclarini profesyonel PDF formatinda uretir.
 
     Returns:
-        PDF dosyasının bytes içeriği
+        PDF dosyasinin bytes icerigi
     """
     pdf = HumaMedPDF()
     pdf.alias_nb_pages()
     pdf.add_page()
 
-    # ══════════════════════════════════════════════════
-    # 1. ANALİZ ÖZETİ
-    # ══════════════════════════════════════════════════
-    pdf.section_title("Analiz Özeti")
+    # ====================================================
+    # 1. ANALIZ OZETI
+    # ====================================================
+    pdf.section_title("Analiz Ozeti")
 
-    # Bilgi tablosu — 2 sütunlu düzen
+    # Bilgi tablosu — 2 sutunlu duzen
     info_data = [
-        ("Kullanılan Model", model_name),
-        ("Tahmin Edilen Tanı", predicted_class),
-        ("Güven Oranı", f"%{confidence * 100:.1f}"),
-        ("Sınıf Sayısı", str(len(class_names))),
-        ("Analiz Tarihi", datetime.now().strftime("%d.%m.%Y — %H:%M:%S")),
+        ("Kullanilan Model", model_name),
+        ("Tahmin Edilen Tani", predicted_class),
+        ("Guven Orani", f"%{confidence * 100:.1f}"),
+        ("Sinif Sayisi", str(len(class_names))),
+        ("Analiz Tarihi", datetime.now().strftime("%d.%m.%Y - %H:%M:%S")),
     ]
 
     for label, value in info_data:
@@ -152,10 +184,10 @@ def generate_pdf_report(
 
     pdf.ln(4)
 
-    # ══════════════════════════════════════════════════
-    # 2. GÖRÜNTÜ ANALİZİ
-    # ══════════════════════════════════════════════════
-    pdf.section_title("Görüntü Analizi")
+    # ====================================================
+    # 2. GORUNTU ANALIZI
+    # ====================================================
+    pdf.section_title("Goruntu Analizi")
 
     tmp_files = []
     try:
@@ -177,15 +209,15 @@ def generate_pdf_report(
         # Etiketler
         pdf._set("B", 8)
         pdf.set_text_color(79, 70, 229)
-        pdf.cell(img_w + 5, 5, "Orijinal Görüntü", align="C", ln=False)
-        pdf.cell(img_w + 5, 5, "Grad-CAM Isı Haritası", align="C", ln=True)
+        pdf.cell(img_w + 5, 5, "Orijinal Goruntu", align="C", ln=False)
+        pdf.cell(img_w + 5, 5, "Grad-CAM Isi Haritasi", align="C", ln=True)
 
-        # Görüntüler
+        # Goruntuler
         img_y = pdf.get_y() + 1
         pdf.image(tmp_orig, x=12, y=img_y, w=img_w)
         pdf.image(tmp_gradcam, x=12 + img_w + 6, y=img_y, w=img_w)
 
-        # Görüntülerin altına geçiş
+        # Goruntulerin altina gecis
         pdf.set_y(img_y + img_w + 4)
 
     finally:
@@ -197,27 +229,27 @@ def generate_pdf_report(
 
     pdf.ln(2)
 
-    # ══════════════════════════════════════════════════
-    # 3. OLASILIK DAĞILIMI
-    # ══════════════════════════════════════════════════
-    pdf.section_title("Sınıf Olasılık Dağılımı")
+    # ====================================================
+    # 3. OLASILIK DAGILIMI
+    # ====================================================
+    pdf.section_title("Sinif Olasilik Dagilimi")
 
-    # Tablo başlığı
-    col_widths = [40, 30, 30, 50]  # toplam = 150mm (sayfa içinde kalır)
-    headers = ["Sınıf", "Olasılık", "Durum", "Görsel"]
+    # Tablo basligi
+    col_widths = [40, 30, 30, 50]  # toplam = 150mm
+    headers = ["Sinif", "Olasilik", "Durum", "Gorsel"]
 
     pdf._set("B", 9)
     pdf.set_fill_color(248, 250, 252)
     pdf.set_text_color(51, 65, 85)
     pdf.set_draw_color(226, 232, 240)
 
-    x_start = (210 - sum(col_widths)) / 2  # Tabloyu ortala
+    x_start = (210 - sum(col_widths)) / 2
     pdf.set_x(x_start)
     for header, w in zip(headers, col_widths):
         pdf.cell(w, 7, header, border=1, fill=True, align="C")
     pdf.ln()
 
-    # Tablo satırları
+    # Tablo satirlari
     for name, prob in zip(class_names, probabilities):
         is_predicted = name == predicted_class
         prob_pct = prob * 100
@@ -233,45 +265,48 @@ def generate_pdf_report(
 
         pdf.set_x(x_start)
 
-        # Sınıf adı
+        # Sinif adi
         pdf.cell(col_widths[0], 7, name, border=1, fill=True, align="C")
 
-        # Olasılık
+        # Olasilik
         pdf.cell(col_widths[1], 7, f"%{prob_pct:.2f}", border=1, fill=True, align="C")
 
         # Durum
-        status = "● Tahmin" if is_predicted else ""
+        status = "[Tahmin]" if is_predicted else ""
         pdf.cell(col_widths[2], 7, status, border=1, fill=True, align="C")
 
-        # Görsel bar — max 20 karakter (sütuna sığacak şekilde)
+        # Gorsel bar — ASCII-safe karakter
         bar_count = max(1, int(prob * 20))
-        bar_text = "█" * bar_count
+        bar_text = "|" * bar_count
         pdf.cell(col_widths[3], 7, bar_text, border=1, fill=True, align="L")
         pdf.ln()
 
     pdf.ln(4)
 
-    # ══════════════════════════════════════════════════
-    # 4. KLİNİK RAPOR
-    # ══════════════════════════════════════════════════
-    pdf.section_title("Klinik Değerlendirme Raporu")
+    # ====================================================
+    # 4. KLINIK RAPOR
+    # ====================================================
+    pdf.section_title("Klinik Degerlendirme Raporu")
 
     # Markdown sembollerini temizle
     clean_report = report_text
-    for marker in ["**", "📋", "🔴", "✅", "🔍", "⚡", "⚠️", "---"]:
+    for marker in ["**", "---", "*"]:
         clean_report = clean_report.replace(marker, "")
 
-    # Italic yıldız temizliği
-    while clean_report.startswith("*"):
-        clean_report = clean_report[1:]
-    while clean_report.endswith("*"):
-        clean_report = clean_report[:-1]
-    clean_report = clean_report.replace("*", "")
+    # Emoji temizligi
+    import re
+    emoji_pattern = re.compile(
+        "[\U0001F600-\U0001F64F\U0001F300-\U0001F5FF\U0001F680-\U0001F6FF"
+        "\U0001F1E0-\U0001F1FF\U00002702-\U000027B0\U000024C2-\U0001F251"
+        "\U0001f926-\U0001f937\U00010000-\U0010ffff\u2600-\u26FF\u2700-\u27BF"
+        "\u23E9-\u23F3\u23F8-\u23FA\u200d\uFE0F\u20E3\u2640\u2642\u2695"
+        "\u26A1\u2B50\u2B55\u2934\u2935\u25AA\u25AB\u25FB-\u25FE]+",
+        flags=re.UNICODE,
+    )
+    clean_report = emoji_pattern.sub("", clean_report)
 
-    # Rapor kutucuğu — hafif gri arka plan
-    pdf.set_fill_color(248, 250, 252)
-    pdf.set_draw_color(226, 232, 240)
-    box_y = pdf.get_y()
+    # Em dash -> tire
+    clean_report = clean_report.replace("\u2014", "-").replace("\u2013", "-")
 
     # Rapor metnini yaz
     pdf._set("", 9)
@@ -284,28 +319,28 @@ def generate_pdf_report(
 
     pdf.ln(4)
 
-    # ══════════════════════════════════════════════════
-    # 5. SORUMLULUK REDDİ
-    # ══════════════════════════════════════════════════
+    # ====================================================
+    # 5. SORUMLULUK REDDI
+    # ====================================================
     pdf.set_draw_color(226, 232, 240)
     pdf.line(10, pdf.get_y(), 200, pdf.get_y())
     pdf.ln(4)
 
-    pdf.set_fill_color(255, 251, 235)  # Sarımsı arka plan
+    pdf.set_fill_color(255, 251, 235)
     pdf.set_draw_color(253, 224, 71)
 
     pdf._set("B", 8)
     pdf.set_text_color(146, 64, 14)
-    pdf.cell(0, 5, "Yasal Uyarı", ln=True)
+    pdf.cell(0, 5, "Yasal Uyari", ln=True)
 
     pdf._set("I", 7)
     pdf.set_text_color(146, 64, 14)
     pdf.multi_cell(
         0, 4,
-        "Bu rapor HÜMA-MED Klinik Karar Destek Sistemi tarafından otomatik "
-        "olarak üretilmiştir. Yapay zekâ destekli analiz sonuçları kesin tanı "
-        "niteliği taşımamaktadır. Tüm bulgular uzman hekim tarafından klinik "
-        "korelasyon ile değerlendirilmelidir.",
+        "Bu rapor Retinal AMD Klinik Karar Destek Sistemi tarafindan otomatik "
+        "olarak uretilmistir. Yapay zeka destekli analiz sonuclari kesin tani "
+        "niteligi tasimamaktadir. Tum bulgular uzman hekim tarafindan klinik "
+        "korelasyon ile degerlendirilmelidir.",
         align="L",
     )
 
