@@ -36,6 +36,7 @@ htmlcov/
 # ── Ortam Değişkenleri ──
 .env
 .env.local
+.streamlit/secrets.toml
 
 # ── Geçici Dosyalar ──
 *.tmp

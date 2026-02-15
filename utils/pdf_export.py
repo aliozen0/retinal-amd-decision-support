@@ -155,9 +155,15 @@ def generate_pdf_report(
     probabilities: np.ndarray,
     model_name: str,
     report_text: str,
+    patient_info: Optional[dict] = None,
+    analysis_history: Optional[List[dict]] = None,
 ) -> bytes:
     """
     Analiz sonuclarini profesyonel PDF formatinda uretir.
+
+    Args:
+        patient_info: Hasta bilgileri dict (ad, soyad, dosya_no, dogum_tarihi vb.)
+        analysis_history: Gecmis analiz listesi (son 5 analiz)
 
     Returns:
         PDF dosyasinin bytes icerigi
@@ -190,6 +196,70 @@ def generate_pdf_report(
         pdf.cell(0, 6, value, ln=True)
 
     pdf.ln(4)
+
+    # ====================================================
+    # 1.5 HASTA BILGILERI (opsiyonel)
+    # ====================================================
+    if patient_info:
+        pdf.section_title("Hasta Bilgileri")
+        hasta_data = [
+            ("Ad Soyad", f"{patient_info.get('ad', '')} {patient_info.get('soyad', '')}"),
+            ("Dosya No", patient_info.get('dosya_no', '-')),
+            ("Dogum Tarihi", patient_info.get('dogum_tarihi', '-') or '-'),
+            ("Telefon", patient_info.get('telefon', '-') or '-'),
+            ("E-posta", patient_info.get('email', '-') or '-'),
+        ]
+        for label, value in hasta_data:
+            pdf._set("", 9)
+            pdf.set_text_color(100, 116, 139)
+            pdf.cell(50, 6, label, ln=False)
+            pdf._set("B", 9)
+            pdf.set_text_color(30, 41, 59)
+            pdf.cell(0, 6, str(value), ln=True)
+        pdf.ln(4)
+
+    # ====================================================
+    # 1.6 GECMIS ANALIZ OZETI (opsiyonel)
+    # ====================================================
+    if analysis_history and len(analysis_history) > 0:
+        pdf.section_title("Gecmis Analiz Ozeti (Son 5)")
+
+        hist_cols = [45, 35, 30, 40]
+        hist_headers = ["Tarih", "Tani", "Guven", "Model"]
+
+        pdf._set("B", 8)
+        pdf.set_fill_color(248, 250, 252)
+        pdf.set_text_color(51, 65, 85)
+        pdf.set_draw_color(226, 232, 240)
+
+        x_s = (210 - sum(hist_cols)) / 2
+        pdf.set_x(x_s)
+        for h, w in zip(hist_headers, hist_cols):
+            pdf.cell(w, 6, h, border=1, fill=True, align="C")
+        pdf.ln()
+
+        for ah in analysis_history[:5]:
+            pdf._set("", 8)
+            pdf.set_text_color(51, 65, 85)
+            pdf.set_x(x_s)
+
+            # Tarih
+            date_str = "-"
+            if ah.get("analysis_date"):
+                try:
+                    from datetime import datetime as dt_cls
+                    d = dt_cls.fromisoformat(ah["analysis_date"].replace("Z", "+00:00"))
+                    date_str = d.strftime("%d.%m.%Y %H:%M")
+                except Exception:
+                    date_str = str(ah["analysis_date"])[:16]
+
+            pdf.cell(hist_cols[0], 6, date_str, border=1, align="C")
+            pdf.cell(hist_cols[1], 6, ah.get("predicted_class", "-"), border=1, align="C")
+            pdf.cell(hist_cols[2], 6, f"%{ah.get('confidence', 0)*100:.1f}", border=1, align="C")
+            pdf.cell(hist_cols[3], 6, ah.get("model_name", "-"), border=1, align="C")
+            pdf.ln()
+
+        pdf.ln(4)
 
     # ====================================================
     # 2. GORUNTU ANALIZI
@@ -348,6 +418,171 @@ def generate_pdf_report(
         "olarak uretilmistir. Yapay zeka destekli analiz sonuclari kesin tani "
         "niteligi tasimamaktadir. Tum bulgular uzman hekim tarafindan klinik "
         "korelasyon ile degerlendirilmelidir.",
+        align="L",
+    )
+
+    return bytes(pdf.output())
+
+
+def generate_comparative_pdf(
+    analyses: list,
+    patient_info: Optional[dict] = None,
+) -> bytes:
+    """
+    Birden fazla analizi karsilastirmali PDF raporunda uretir.
+
+    Args:
+        analyses: Karsilastirilacak analiz listesi (2-3 adet).
+                  Her biri dict: predicted_class, confidence, analysis_date,
+                  model_name, original_image (np), gradcam_image (np),
+                  report_text
+        patient_info: Hasta bilgileri dict
+
+    Returns:
+        PDF dosyasinin bytes icerigi
+    """
+    pdf = RetinalPDF()
+    pdf.alias_nb_pages()
+    pdf.add_page()
+
+    # ── Baslik ──
+    pdf.section_title("Karsilastirmali Analiz Raporu")
+    pdf._set("", 9)
+    pdf.set_text_color(100, 116, 139)
+    pdf.cell(0, 6, f"Analiz Sayisi: {len(analyses)}", ln=True)
+    pdf.cell(0, 6, f"Rapor Tarihi: {datetime.now(TZ_TR).strftime('%d.%m.%Y - %H:%M:%S')}", ln=True)
+    pdf.ln(4)
+
+    # ── Hasta Bilgileri ──
+    if patient_info:
+        pdf.section_title("Hasta Bilgileri")
+        hasta_data = [
+            ("Ad Soyad", f"{patient_info.get('ad', '')} {patient_info.get('soyad', '')}"),
+            ("Dosya No", patient_info.get('dosya_no', '-')),
+        ]
+        for label, value in hasta_data:
+            pdf._set("", 9)
+            pdf.set_text_color(100, 116, 139)
+            pdf.cell(50, 6, label, ln=False)
+            pdf._set("B", 9)
+            pdf.set_text_color(30, 41, 59)
+            pdf.cell(0, 6, str(value), ln=True)
+        pdf.ln(4)
+
+    # ── Ozet Tablosu ──
+    pdf.section_title("Analiz Ozet Tablosu")
+    col_w = [10, 40, 35, 30, 40]
+    headers = ["#", "Tarih", "Tani", "Guven", "Model"]
+
+    pdf._set("B", 8)
+    pdf.set_fill_color(248, 250, 252)
+    pdf.set_text_color(51, 65, 85)
+    pdf.set_draw_color(226, 232, 240)
+
+    x_start = (210 - sum(col_w)) / 2
+    pdf.set_x(x_start)
+    for h, w in zip(headers, col_w):
+        pdf.cell(w, 6, h, border=1, fill=True, align="C")
+    pdf.ln()
+
+    for i, a in enumerate(analyses):
+        pdf._set("", 8)
+        pdf.set_text_color(51, 65, 85)
+        pdf.set_x(x_start)
+
+        date_str = "-"
+        if a.get("analysis_date"):
+            try:
+                d = datetime.fromisoformat(str(a["analysis_date"]).replace("Z", "+00:00"))
+                date_str = d.strftime("%d.%m.%Y %H:%M")
+            except Exception:
+                date_str = str(a["analysis_date"])[:16]
+
+        pdf.cell(col_w[0], 6, str(i + 1), border=1, align="C")
+        pdf.cell(col_w[1], 6, date_str, border=1, align="C")
+        pdf.cell(col_w[2], 6, a.get("predicted_class", "-"), border=1, align="C")
+        pdf.cell(col_w[3], 6, f"%{a.get('confidence', 0)*100:.1f}", border=1, align="C")
+        pdf.cell(col_w[4], 6, a.get("model_name", "-"), border=1, align="C")
+        pdf.ln()
+
+    pdf.ln(4)
+
+    # ── Her Analiz Icin Goruntu Karsilastirmasi ──
+    pdf.section_title("Goruntu Karsilastirmasi")
+
+    tmp_files = []
+    try:
+        img_w = int(170 / len(analyses))  # her goruntu icin esit genislik
+
+        # Etiketler
+        pdf._set("B", 8)
+        pdf.set_text_color(79, 70, 229)
+        x = 15
+        for i, a in enumerate(analyses):
+            label = f"#{i+1}: {a.get('predicted_class', '?')}"
+            pdf.set_x(x)
+            pdf.cell(img_w, 5, label, align="C")
+            x += img_w + 3
+        pdf.ln(6)
+
+        # Grad-CAM goruntuler
+        y_img = pdf.get_y()
+        x = 15
+        for a in analyses:
+            grad_img = a.get("gradcam_image")
+            if grad_img is not None:
+                import tempfile
+                with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as f:
+                    PILImage.fromarray(grad_img).save(f, format="PNG")
+                    tmp_files.append(f.name)
+                    pdf.image(f.name, x=x, y=y_img, w=img_w)
+            x += img_w + 3
+
+        pdf.set_y(y_img + img_w + 5)
+
+    finally:
+        import os
+        for f in tmp_files:
+            try:
+                os.unlink(f)
+            except Exception:
+                pass
+
+    pdf.ln(4)
+
+    # ── Degisim Analizi ──
+    if len(analyses) >= 2:
+        pdf.section_title("Degisim Analizi")
+        first = analyses[0]
+        last = analyses[-1]
+
+        conf_diff = (first.get("confidence", 0) - last.get("confidence", 0)) * 100
+
+        pdf._set("", 9)
+        pdf.set_text_color(51, 65, 85)
+
+        if first.get("predicted_class") != last.get("predicted_class"):
+            pdf.multi_cell(0, 5,
+                f"Sinif degisimi tespit edildi: "
+                f"{last.get('predicted_class', '?')} -> {first.get('predicted_class', '?')}")
+        else:
+            pdf.multi_cell(0, 5,
+                f"Sinif degisimi yok ({first.get('predicted_class', '?')}). "
+                f"Guven fark: {conf_diff:+.1f}%")
+
+        pdf.ln(2)
+
+    # ── Sorumluluk Reddi ──
+    pdf.set_draw_color(226, 232, 240)
+    pdf.line(10, pdf.get_y(), 200, pdf.get_y())
+    pdf.ln(4)
+
+    pdf._set("I", 7)
+    pdf.set_text_color(146, 64, 14)
+    pdf.multi_cell(0, 4,
+        "Bu rapor Retinal AMD Klinik Karar Destek Sistemi tarafindan otomatik "
+        "olarak uretilmistir. Karsilastirmali analiz sonuclari kesin tani "
+        "niteligi tasimamaktadir.",
         align="L",
     )
 
