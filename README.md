@@ -172,6 +172,100 @@ Uygulama `http://localhost:8501` adresinde başlayacaktır.
 
 ---
 
+## 📊 Model Performansı (EfficientNet-B4)
+
+### Eğitim Hiperparametreleri
+
+| # | Parametre | Değer | Açıklama |
+|---|-----------|-------|----------|
+| 0 | **Model Mimarisi** | EfficientNet-B4 | Hassas doku analizi için yüksek kapasiteli model |
+| 1 | **Giriş Çözünürlüğü** | 380 × 380 | Küçük retina lezyonlarını yakalamak için optimize edildi |
+| 2 | **Batch Size** | 64 | A100 bellek kapasitesi için optimize edilmiş hacim |
+| 3 | **Optimizer** | AdamW (Weight Decay: 1e-4) | Daha kararlı ağırlık güncellemeleri için |
+| 4 | **Learning Rate (Başlangıç)** | 1e-4 | İnce detayları öğrenmek için düşük hız seçildi |
+| 5 | **LR Scheduler** | ReduceLROnPlateau | Doğruluğa bağlı dinamik hız düşürme |
+| 6 | **Loss Function** | Label Smoothing CrossEntropy (0.1) | Modelin genelleme yeteneğini artıran kayıp fonksiyonu |
+| 7 | **Data Augmentation** | Horizontal/Vertical Flip, Rotation, ColorJitter | Farklı çekim koşulları simülasyonu |
+| 8 | **Mixed Precision (AMP)** | Aktif (O1) | Eğitim hızını 2-3× artıran Tensor Core kullanımı |
+| 9 | **Epoch Sayısı** | 12 | Modelin yakınsaması için belirlenen tam tur sayısı |
+
+### Sınıflandırma Raporu
+
+968 test görüntüsü üzerinde elde edilen sonuçlar:
+
+| Sınıf | Precision | Recall | F1-Score | Destek |
+|-------|-----------|--------|----------|--------|
+| **CNV** | %97.19 | %100.00 | %98.57 | 242 |
+| **DME** | %100.00 | %100.00 | %100.00 | 242 |
+| **DRUSEN** | %99.58 | %97.11 | %98.33 | 242 |
+| **NORMAL** | %100.00 | %99.59 | %99.79 | 242 |
+| **Genel Doğruluk** | | | **%99.17** | **968** |
+
+### Temel Bulgular
+
+- 🏆 **%99.17 genel doğruluk** — 968 test görüntüsünden yalnızca **8 tanesi** yanlış sınıflandırıldı
+- ✅ **DME sınıfı mükemmel** — Precision, Recall ve F1'in üçü de %100 (242/242 doğru)
+- ✅ **CNV sınıfı %100 Recall** — Hiçbir CNV vakası kaçırılmadı (yüksek hassasiyet)
+- ⚡ **DRUSEN en zayıf halka** — 7 DRUSEN örneği CNV olarak yanlış sınıflandırıldı (Recall: %97.11). Bu, iki patolojinin morfolojik benzerliğinden kaynaklanmaktadır
+- 🎯 **Tüm AUC değerleri ≥ 0.9995** — Model, sınıflar arası ayrımda neredeyse ideal performans göstermektedir
+
+### Performans Görselleri
+
+<table>
+<tr>
+<td align="center" width="50%">
+
+**Karışıklık Matrisi (Confusion Matrix)**
+
+Modelin 968 test görüntüsü üzerindeki tahmin dağılımı. Köşegen üzerindeki yoğunluk, yüksek sınıflandırma başarısını gösterir.
+
+<img src="assets/confusion_matrix.png" alt="Karışıklık Matrisi" width="100%">
+
+</td>
+<td align="center" width="50%">
+
+**ROC Eğrisi & AUC Değerleri**
+
+Tüm sınıflar için AUC ≥ 0.9995 — model neredeyse ideal ayırt edicilik göstermektedir.
+
+<img src="assets/roc_curve.png" alt="ROC Eğrisi" width="100%">
+
+</td>
+</tr>
+<tr>
+<td align="center" width="50%">
+
+**Model Güven Dağılımı (Violin Plot)**
+
+Doğru tahminlerdeki güven skoru dağılımı. DME en yüksek ve en dar güven aralığına sahiptir.
+
+<img src="assets/confidence_violin.png" alt="Güven Dağılımı" width="100%">
+
+</td>
+<td align="center" width="50%">
+
+**Eğitim Süreci — Kayıp (Loss) Analizi**
+
+12 epoch boyunca train/validation loss eğrileri. 4. epoch'ta öğrenme hızı düşürülmüş, sürekli iyileşme gözlenmiştir.
+
+<img src="assets/training_loss.png" alt="Eğitim Loss Eğrisi" width="100%">
+
+</td>
+</tr>
+</table>
+
+### Grad-CAM Görselleştirmesi
+
+Modelin karar verirken odaklandığı retinal bölgelerin ısı haritası ile görselleştirilmesi:
+
+<p align="center">
+<img src="assets/gradcam_sample.png" alt="Grad-CAM Örneği" width="70%">
+</p>
+
+> Grad-CAM, modelin **hangi retinal katmanlara** odaklandığını göstererek klinisyenlere **şeffaf ve yorumlanabilir** bir karar destek mekanizması sunar.
+
+---
+
 ## 📦 Teknoloji Yığını
 
 | Kategori | Teknoloji |
