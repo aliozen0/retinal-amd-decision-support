@@ -1,7 +1,7 @@
 <p align="center">
   <h1 align="center">🧬 Retinal AMD Klinik Karar Destek Sistemi</h1>
   <p align="center">
-    <strong>Yapay Zekâ Destekli Retinal OCT Patoloji Tespiti ve Klinik Raporlama Platformu</strong>
+    <strong>Yapay Zekâ Destekli Retinal OCT Patoloji Tespiti, Hasta Takibi ve LLM Klinik Raporlama Platformu</strong>
   </p>
   <p align="center">
     <a href="#özellikler"><img src="https://img.shields.io/badge/EfficientNet--B4-%2599%2B%20Doğruluk-6366f1?style=for-the-badge&logo=pytorch&logoColor=white" alt="Model Doğruluğu"></a>
@@ -33,7 +33,7 @@
 
 **Optik Koherens Tomografi (OCT)** görüntülerinden retinal patolojilerin tespitine yönelik derin öğrenme destekli **klinik karar destek sistemidir**. Sistem; **Yaşa Bağlı Makula Dejenerasyonu (AMD)**, **Diyabetik Makula Ödemi (DME)**, **Koroidal Neovaskülarizasyon (CNV)** ve **Drusen** patolojilerini yüksek doğrulukla sınıflandırır.
 
-Platform, son teknoloji evrişimli sinir ağlarını **Gradient-weighted Class Activation Mapping (Grad-CAM)** ile birleştirerek model kararlarını görselleştirir, otomatik klinik raporlar üretir ve bunları indirilebilir PDF formatında sunar — tamamı Streamlit tabanlı premium bir web arayüzü üzerinden çalışır.
+Platform, son teknoloji evrişimli sinir ağlarını **Gradient-weighted Class Activation Mapping (Grad-CAM)** ile birleştirerek model kararlarını görselleştirir, **Supabase** veritabanı ile hasta takibi yapar, **io.net** üzerinden 18+ LLM modeli ile yapay zekâ destekli klinik raporlar üretir ve bunları indirilebilir PDF formatında sunar — tamamı Streamlit tabanlı premium bir web arayüzü üzerinden çalışır.
 
 > ⚠️ **Sorumluluk Reddi**: Bu sistem klinik **karar destek** aracı olarak tasarlanmıştır. Tahminler yapay zekâ desteklidir ve kesin tanı niteliği taşımaz. Uzman hekim değerlendirmesi her zaman esastır.
 
@@ -76,6 +76,27 @@ Platform, son teknoloji evrişimli sinir ağlarını **Gradient-weighted Class A
 
 </td>
 </tr>
+<tr>
+<td width="50%">
+
+### 🏥 Hasta Yönetim Sistemi
+- **Supabase** veritabanı ile hasta kayıt ve takip
+- Hasta arama, ekleme ve profil yönetimi
+- Geçmiş analizleri görüntüleme ve karşılaştırma
+- Güven skoru trend grafikleri
+
+</td>
+<td width="50%">
+
+### 🤖 LLM Destekli Akıllı Raporlama
+- **io.net API** üzerinden **18+ LLM modeli** desteği
+- DeepSeek-V3.2, Kimi-K2, Qwen3, Llama-4, Mistral ve daha fazlası
+- Kullanıcı arayüzünden **model seçimi**
+- Tekli analiz ve **karşılaştırmalı rapor** üretimi
+- 120 saniyelik timeout ve detaylı loglama
+
+</td>
+</tr>
 </table>
 
 ---
@@ -85,20 +106,29 @@ Platform, son teknoloji evrişimli sinir ağlarını **Gradient-weighted Class A
 ```
 retinal-amd-decision-support/
 │
-├── app.py                      # Ana Streamlit uygulaması
-│                                 # Premium arayüz, çıkarım pipeline'ı, interaktif grafikler
+├── app.py                      # Ana Streamlit uygulaması (Analiz + Hasta Yönetimi)
 │
 ├── models/
 │   ├── __init__.py              # Model tanımları ve ağırlık yükleme (EfficientNet-B4)
-│   └── *.pth                    # Önceden eğitilmiş model ağırlıkları
+│   └── sota_99acc.pth           # Önceden eğitilmiş model ağırlıkları
 │
 ├── utils/
 │   ├── preprocessing.py         # Görüntü dönüşümleri (Resize → CenterCrop → Normalize)
-│   ├── gradcam.py               # Hook tabanlı Grad-CAM (CNN & Transformer desteği)
-│   ├── reporting.py             # Klinik rapor metni üretimi (Türkçe)
-│   └── pdf_export.py            # Profesyonel PDF rapor üretimi
+│   ├── gradcam.py               # Hook tabanlı Grad-CAM (CNN desteği)
+│   ├── reporting.py             # Kural tabanlı klinik rapor üretimi (Türkçe)
+│   ├── llm_reporting.py         # LLM destekli rapor üretimi (io.net, 18+ model)
+│   ├── pdf_export.py            # Tekli ve karşılaştırmalı PDF rapor üretimi
+│   ├── database.py              # Supabase veritabanı bağlantısı ve CRUD işlemleri
+│   └── ui_components.py         # Yardımcı UI bileşenleri
 │
-└── requirements.txt             # Python bağımlılıkları
+├── .streamlit/
+│   ├── secrets.toml             # API anahtarları (git'e dahil edilmez)
+│   ├── secrets.toml.example     # Secrets şablon dosyası
+│   └── config.toml              # Streamlit yapılandırması
+│
+├── assets/                      # Model performans görselleri
+├── requirements.txt             # Python bağımlılıkları
+└── packages.txt                 # Sistem bağımlılıkları (Streamlit Cloud)
 ```
 
 ### Sistem Pipeline'ı
@@ -109,9 +139,14 @@ flowchart LR
     B --> C[🧠 Model Çıkarımı]
     C --> D[📊 Softmax Olasılıkları]
     C --> E[🔥 Grad-CAM Isı Haritası]
-    D --> F[📋 Klinik Rapor]
+    D --> F[📋 Kural Tabanlı Rapor]
+    D --> G[🤖 LLM Rapor - io.net]
     E --> F
-    F --> G[📄 PDF Dışa Aktarma]
+    F --> H[📄 PDF Dışa Aktarma]
+    G --> H
+    D --> I[💾 Supabase Kayıt]
+    I --> J[🔍 Karşılaştırma]
+    J --> G
 ```
 
 ---
@@ -122,6 +157,8 @@ flowchart LR
 
 - **Python** 3.9+
 - **pip** paket yöneticisi
+- **Supabase** hesabı (hasta takibi için)
+- **io.net** API anahtarı (LLM raporlama için)
 
 ### Kurulum
 
@@ -139,6 +176,23 @@ venv\Scripts\activate           # Windows
 pip install -r requirements.txt
 ```
 
+### Secrets Yapılandırması
+
+`.streamlit/secrets.toml` dosyasını oluşturun (`.streamlit/secrets.toml.example` şablonunu referans alın):
+
+```toml
+[supabase]
+url = "https://YOUR_PROJECT.supabase.co"
+key = "YOUR_ANON_KEY"
+
+[io_net]
+api_key = "YOUR_IO_NET_API_KEY"
+base_url = "https://api.intelligence.io.solutions/api/v1/"
+model = "deepseek-ai/DeepSeek-V3.2"
+```
+
+> ⚠️ **Streamlit Cloud'da**: Settings → Secrets bölümünden aynı içeriği yapıştırın.
+
 ### Uygulamayı Çalıştırma
 
 ```bash
@@ -153,11 +207,13 @@ Uygulama `http://localhost:8501` adresinde başlayacaktır.
 
 | Adım | İşlem | Açıklama |
 |------|-------|----------|
-| **1** | 📤 Görüntü Yükle | Yükleme alanından retinal OCT görüntüsü seçin (JPG/PNG) |
-| **2** | 🧠 Model Seç | Kenar çubuğundan aktif modeli seçin *(EfficientNet-B4)* |
-| **3** | 🔬 Analiz Başlat | **"Analizi Başlat"** butonuna tıklayarak çıkarım + Grad-CAM işlemini tetikleyin |
+| **1** | 🏥 Hasta Seç/Ekle | Hasta Yönetimi sekmesinden hasta seçin veya yeni hasta ekleyin |
+| **2** | 📤 Görüntü Yükle | Yükleme alanından retinal OCT görüntüsü seçin (JPG/PNG) |
+| **3** | 🔬 Analiz Başlat | **"🚀 Analiz Et"** butonuyla çıkarım + Grad-CAM işlemini başlatın |
 | **4** | 📊 Sonuçları İncele | Tahmin, güven grafiği, Grad-CAM overlay ve klinik raporu inceleyin |
-| **5** | 📄 PDF İndir | Analiz sonuçlarını profesyonel PDF raporu olarak indirin |
+| **5** | 🤖 LLM Rapor | Dropdown'dan LLM modeli seçip **"Yapay Zekâ ile Detaylı Rapor Üret"** butonuna tıklayın |
+| **6** | 🔍 Karşılaştır | Geçmiş analizlerden seçerek karşılaştırma yapın, LLM karşılaştırma raporu üretin |
+| **7** | 📄 PDF İndir | Tekli veya karşılaştırmalı analizi PDF olarak indirin |
 
 ---
 
@@ -276,6 +332,9 @@ Modelin karar verirken odaklandığı retinal bölgelerin ısı haritası ile g�
 |----------|-----------|
 | **Derin Öğrenme** | PyTorch, TorchVision |
 | **Web Framework** | Streamlit |
+| **Veritabanı** | Supabase (PostgreSQL) |
+| **LLM API** | io.net (OpenAI uyumlu endpoint) |
+| **Desteklenen LLM'ler** | DeepSeek-V3.2, Kimi-K2, Qwen3, Llama-4, Mistral ve 13+ model |
 | **Görselleştirme** | Plotly, OpenCV |
 | **PDF Üretimi** | FPDF2 |
 | **Görüntü İşleme** | Pillow, NumPy |

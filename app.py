@@ -17,7 +17,10 @@ import utils.preprocessing as preprocessing
 from utils.gradcam import generate_gradcam, overlay_gradcam
 from utils.reporting import generate_clinical_report
 from utils.pdf_export import generate_pdf_report, generate_comparative_pdf
-from utils.llm_reporting import is_llm_available, generate_llm_report, generate_llm_comparative_report
+from utils.llm_reporting import (
+    is_llm_available, generate_llm_report, generate_llm_comparative_report,
+    get_available_models, get_model_display_name,
+)
 from models import load_model, get_classes, get_target_layer
 from utils.database import (
     is_db_available, save_analysis, get_patient_analyses,
@@ -347,8 +350,19 @@ with tab_analysis:
 
             # 🤖 LLM Rapor
             if is_llm_available():
+                models = get_available_models()
+                model_labels = [get_model_display_name(m) for m in models]
+                selected_idx = st.selectbox(
+                    "🧠 LLM Model Seçin",
+                    range(len(models)),
+                    format_func=lambda i: model_labels[i],
+                    key="llm_single_model",
+                )
+                selected_llm = models[selected_idx]
+
                 if st.button("🤖 Yapay Zekâ ile Detaylı Rapor Üret", key="llm_single", use_container_width=True):
                     import time
+                    short_name = get_model_display_name(selected_llm)
                     progress_bar = st.progress(0, text="🧠 Yapay zekâ modeli hazırlanıyor…")
                     for i in range(30):
                         time.sleep(0.04)
@@ -357,7 +371,7 @@ with tab_analysis:
                     for i in range(35, 55):
                         time.sleep(0.03)
                         progress_bar.progress(i + 1, text="📡 io.net sunucusuna bağlanılıyor…")
-                    progress_bar.progress(60, text="✍️ DeepSeek-V3.2 rapor yazıyor…")
+                    progress_bar.progress(60, text=f"✍️ {short_name} rapor yazıyor…")
 
                     llm_text = generate_llm_report(
                         predicted_class=result["predicted_class"],
@@ -366,11 +380,12 @@ with tab_analysis:
                         class_names=result["class_names"],
                         model_name=result["model_name"],
                         patient_info=patient,
+                        llm_model=selected_llm,
                     )
 
                     for i in range(60, 95):
                         time.sleep(0.02)
-                        progress_bar.progress(i + 1, text="✍️ DeepSeek-V3.2 rapor yazıyor…")
+                        progress_bar.progress(i + 1, text=f"✍️ {short_name} rapor yazıyor…")
                     progress_bar.progress(100, text="✅ Rapor hazır!")
                     time.sleep(0.5)
                     progress_bar.empty()
@@ -552,8 +567,19 @@ with tab_analysis:
 
         # 🤖 LLM Karşılaştırma Raporu
         if is_llm_available():
+            cmp_models = get_available_models()
+            cmp_labels = [get_model_display_name(m) for m in cmp_models]
+            cmp_idx = st.selectbox(
+                "🧠 Karşılaştırma LLM Modeli",
+                range(len(cmp_models)),
+                format_func=lambda i: cmp_labels[i],
+                key="llm_cmp_model",
+            )
+            cmp_selected_llm = cmp_models[cmp_idx]
+
             if st.button("🤖 AI ile Karşılaştırma Raporu Yaz", key="llm_cmp", use_container_width=True):
                 import time
+                cmp_short = get_model_display_name(cmp_selected_llm)
                 pb = st.progress(0, text="🧠 Yapay zekâ hazırlanıyor…")
                 for i in range(25):
                     time.sleep(0.04)
@@ -562,16 +588,17 @@ with tab_analysis:
                 for i in range(30, 50):
                     time.sleep(0.03)
                     pb.progress(i + 1, text="📡 io.net bağlantısı kuruluyor…")
-                pb.progress(55, text="🔬 DeepSeek karşılaştırma analizi yapıyor…")
+                pb.progress(55, text=f"🔬 {cmp_short} karşılaştırma analizi yapıyor…")
 
                 llm_cmp = generate_llm_comparative_report(
                     analyses=items,
                     patient_info=patient,
+                    llm_model=cmp_selected_llm,
                 )
 
                 for i in range(55, 95):
                     time.sleep(0.02)
-                    pb.progress(i + 1, text="🔬 DeepSeek karşılaştırma analizi yapıyor…")
+                    pb.progress(i + 1, text=f"🔬 {cmp_short} karşılaştırma analizi yapıyor…")
                 pb.progress(100, text="✅ Karşılaştırma raporu hazır!")
                 time.sleep(0.5)
                 pb.empty()
