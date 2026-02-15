@@ -1,10 +1,8 @@
 """
-HÜMA-MED Ön İşleme Modülü
-==========================
+Retinal AMD — Ön İşleme Modülü
+================================
 Retinal OCT görüntülerini model girişine uygun tensörlere dönüştüren
 ön işleme pipeline'ı.
-
-Yazar: HÜMA-MED Ekibi
 """
 
 import torch

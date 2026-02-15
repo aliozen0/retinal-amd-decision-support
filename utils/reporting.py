@@ -1,9 +1,7 @@
 """
-HÜMA-MED Klinik Raporlama Modülü
-==================================
+Retinal AMD — Klinik Raporlama Modülü
+=======================================
 Tahmin sonuçlarına göre otomatik Türkçe klinik rapor metni üreten modül.
-
-Yazar: HÜMA-MED Ekibi
 """
 
 from typing import Dict

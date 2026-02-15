@@ -1,14 +1,12 @@
 """
-HÜMA-MED: Çoklu Model Destekli Klinik Karar Destek Paneli
-==========================================================
-EfficientNet-B4 ve Swin-V2 (SupCon) modellerini dinamik olarak destekleyen,
+Retinal AMD Klinik Karar Destek Paneli
+=======================================
+EfficientNet-B4 modeli ile retinal OCT görüntülerinden patoloji tespiti,
 Grad-CAM görselleştirmesi ve interaktif olasılık grafikleri sunan,
 otomatik klinik rapor üreten Streamlit tabanlı web arayüzü.
 
 Kullanım:
     streamlit run app.py
-
-Yazar: HÜMA-MED Ekibi
 """
 
 import torch
@@ -41,7 +39,7 @@ from utils.pdf_export import generate_pdf_report
 # Sayfa konfigürasyonu
 # ============================================================================
 st.set_page_config(
-    page_title="HÜMA-MED | Klinik Karar Destek Paneli",
+    page_title="Retinal AMD | Klinik Karar Destek Paneli",
     page_icon="🧬",
     layout="wide",
     initial_sidebar_state="collapsed",
@@ -334,7 +332,7 @@ def run_inference(model, input_tensor, model_type):
 with st.sidebar:
     st.markdown("""
     <div class="sidebar-logo">
-        <h2>🧬 HÜMA-MED</h2>
+        <h2>🧬 Retinal AMD</h2>
         <p>Ayarlar</p>
     </div>
     """, unsafe_allow_html=True)
@@ -382,7 +380,7 @@ with st.sidebar:
 # Hero
 st.markdown("""
 <div class="hero-banner">
-    <h1 class="hero-title">🧬 HÜMA-MED</h1>
+    <h1 class="hero-title">🧬 Retinal AMD</h1>
     <p class="hero-subtitle">Retinal OCT Görüntülerinden Yapay Zekâ Destekli Patoloji Tespiti</p>
     <div class="hero-badges">
         <span class="hero-badge">🔬 EfficientNet-B4</span>
@@ -465,7 +463,7 @@ if uploaded_file is not None:
         col_preview, col_info = st.columns([1, 1], gap="large")
         with col_preview:
             st.markdown('<div class="image-card"><div class="image-card-title">🖼️ Ön İzleme</div></div>', unsafe_allow_html=True)
-            st.image(image, width="stretch")
+            st.image(image, use_container_width=True)
         with col_info:
             st.markdown(f"""
             <div class="image-card" style="padding:1.5rem;">
@@ -538,19 +536,19 @@ if uploaded_file is not None:
         col_orig, col_gradcam = st.columns([1, 1], gap="large")
         with col_orig:
             st.markdown('<div class="image-card"><div class="image-card-title">🖼️ Orijinal Görüntü</div></div>', unsafe_allow_html=True)
-            st.image(display_image, width="stretch")
+            st.image(display_image, use_container_width=True)
         with col_gradcam:
             st.markdown(f'<div class="image-card"><div class="image-card-title">🔥 Grad-CAM · {predicted_class}</div></div>', unsafe_allow_html=True)
             if gradcam_success:
-                st.image(overlaid_image, width="stretch")
+                st.image(overlaid_image, use_container_width=True)
             else:
-                st.image(display_image, width="stretch")
+                st.image(display_image, use_container_width=True)
 
         st.markdown("<br>", unsafe_allow_html=True)
 
         # Olasılık Grafiği
         fig = create_confidence_chart(classes, probabilities, predicted_class)
-        st.plotly_chart(fig, width="stretch")
+        st.plotly_chart(fig, use_container_width=True)
 
         # Klinik Rapor
         st.markdown('<div class="report-card"><h3>📋 Klinik Analiz Raporu</h3></div>', unsafe_allow_html=True)
@@ -584,7 +582,7 @@ if uploaded_file is not None:
             )
 
             timestamp = datetime.now(TZ_TR).strftime("%Y%m%d_%H%M%S")
-            filename = f"HUMA-MED_Rapor_{predicted_class}_{timestamp}.pdf"
+            filename = f"RetinalAMD_Rapor_{predicted_class}_{timestamp}.pdf"
 
             col_dl1, col_dl2, col_dl3 = st.columns([1, 1, 1])
             with col_dl2:
@@ -602,7 +600,7 @@ if uploaded_file is not None:
         # Footer
         st.markdown(f"""
         <div class="footer-bar">
-            <p>🧬 HÜMA-MED v1.0.0 · {model_display_name}</p>
+            <p>🧬 Retinal AMD v1.0.0 · {model_display_name}</p>
             <p>Bu sonuçlar yapay zekâ desteğidir, kesin tanı niteliği taşımaz.</p>
         </div>
         """, unsafe_allow_html=True)
@@ -639,7 +637,7 @@ else:
 
     st.markdown("""
     <div class="footer-bar">
-        <p>🧬 HÜMA-MED v1.0.0 · Retinal OCT Analizi</p>
+        <p>🧬 Retinal AMD v1.0.0 · Retinal OCT Analizi</p>
         <p>EfficientNet-B4 · Grad-CAM · PDF Raporlama</p>
     </div>
     """, unsafe_allow_html=True)

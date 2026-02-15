@@ -1,10 +1,8 @@
 """
-HÜMA-MED Model Katmanı
-=======================
-EfficientNet-B4 ve Swin-V2 (SupCon) model mimarilerinin tanımlanması,
+Retinal AMD — Model Katmanı
+============================
+EfficientNet-B4 model mimarisinin tanımlanması,
 oluşturulması ve ağırlık dosyalarından yüklenmesi.
-
-Yazar: HÜMA-MED Ekibi
 """
 
 import os
@@ -17,7 +15,7 @@ from typing import Tuple, List, Optional
 # ============================================================================
 # Model dosya yolları — eğitim tamamlandığında buradan güncelleyebilirsiniz
 # ============================================================================
-MODEL_V1_PATH = os.path.join(os.path.dirname(__file__), "huma_med_final_sota_99acc.pth")
+MODEL_V1_PATH = os.path.join(os.path.dirname(__file__), "sota_99acc.pth")
 MODEL_V2_PATH = os.path.join(os.path.dirname(__file__), "supcon_swin_v2_best_sota.pth")
 
 # ============================================================================
@@ -28,8 +26,8 @@ CLASSES_V2: List[str] = ["AMD", "DME", "NORMAL"]
 
 # Model seçenekleri (sidebar için)
 MODEL_OPTIONS = {
-    "HÜMA-MED v1: EfficientNet-B4 (Yüksek Hız/Kararlılık)": "efficientnet_b4",
-    "🔒 HÜMA-MED v2: Swin-V2 + SupCon (Yakında)": "swin_v2",
+    "EfficientNet-B4 (Yüksek Hız/Kararlılık)": "efficientnet_b4",
+    "🔒 Swin-V2 + SupCon (Yakında)": "swin_v2",
 }
 
 # Pasif (henüz ağırlığı olmayan) modeller

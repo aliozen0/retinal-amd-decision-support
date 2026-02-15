@@ -1,6 +1,6 @@
 """
-Retinal AMD Clinical Decision Support — PDF Raporlama Modülü
-=============================================================
+Retinal AMD — PDF Raporlama Modülü
+====================================
 Analiz sonuçlarını (orijinal görüntü, Grad-CAM ısı haritası,
 olasılık değerleri ve klinik rapor) profesyonel PDF formatında dışa aktarır.
 
@@ -57,7 +57,7 @@ FONT_BOLD = _find_font(_BOLD_CANDIDATES)
 FONT_ITALIC = _find_font(_ITALIC_CANDIDATES)
 
 
-class HumaMedPDF(FPDF):
+class RetinalPDF(FPDF):
     """Profesyonel PDF rapor sinifi. Cross-platform Unicode destekli."""
 
     def __init__(self) -> None:
@@ -162,7 +162,7 @@ def generate_pdf_report(
     Returns:
         PDF dosyasinin bytes icerigi
     """
-    pdf = HumaMedPDF()
+    pdf = RetinalPDF()
     pdf.alias_nb_pages()
     pdf.add_page()
 

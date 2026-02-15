@@ -1,10 +1,8 @@
 """
-HÜMA-MED Grad-CAM Modülü
-=========================
+Retinal AMD — Grad-CAM Modülü
+===============================
 Hook tabanlı saf PyTorch Grad-CAM implementasyonu.
 Harici kütüphane bağımlılığı yoktur (pytorch-grad-cam vb. kullanılmaz).
-
-Yazar: HÜMA-MED Ekibi
 """
 
 import cv2
