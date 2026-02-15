@@ -63,18 +63,22 @@ class HumaMedPDF(FPDF):
 
         # Unicode destekli fontu kaydet (platform-agnostic)
         self._font_name = "Helvetica"  # fallback
+        self._available_styles = {""}  # her zaman regular mevcut
 
         if FONT_REGULAR:
             self.add_font("UniFont", "", FONT_REGULAR, uni=True)
             self._font_name = "UniFont"
         if FONT_BOLD:
             self.add_font("UniFont", "B", FONT_BOLD, uni=True)
+            self._available_styles.add("B")
         if FONT_ITALIC:
             self.add_font("UniFont", "I", FONT_ITALIC, uni=True)
+            self._available_styles.add("I")
 
     def _set(self, style: str = "", size: int = 10) -> None:
-        """Kisa font ayar yardimcisi."""
-        self.set_font(self._font_name, style, size)
+        """Kisa font ayar yardimcisi. Mevcut olmayan stiller icin fallback."""
+        safe_style = style if style in self._available_styles else ""
+        self.set_font(self._font_name, safe_style, size)
 
     def header(self) -> None:
         """Sayfa ust bilgisi — profesyonel beyaz tasarim."""
