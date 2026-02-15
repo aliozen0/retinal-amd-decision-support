@@ -13,6 +13,22 @@
 
 ---
 
+## 📑 İçindekiler
+
+- [📌 Genel Bakış](#-genel-bakış)
+- [✨ Özellikler](#-özellikler)
+- [🏗️ Proje Mimarisi](#️-proje-mimarisi)
+- [🚀 Hızlı Başlangıç](#-hızlı-başlangıç)
+- [🖥️ Kullanım](#️-kullanım)
+- [🧠 Model Detayları](#-model-detayları)
+- [📊 Model Performansı](#-model-performansı-efficientnet-b4)
+- [📦 Teknoloji Yığını](#-teknoloji-yığını)
+- [☁️ Dağıtım (Deployment)](#️-dağıtım-deployment)
+- [🤝 Katkıda Bulunma](#-katkıda-bulunma)
+- [📄 Lisans](#-lisans)
+
+---
+
 ## 📌 Genel Bakış
 
 **Optik Koherens Tomografi (OCT)** görüntülerinden retinal patolojilerin tespitine yönelik derin öğrenme destekli **klinik karar destek sistemidir**. Sistem; **Yaşa Bağlı Makula Dejenerasyonu (AMD)**, **Diyabetik Makula Ödemi (DME)**, **Koroidal Neovaskülarizasyon (CNV)** ve **Drusen** patolojilerini yüksek doğrulukla sınıflandırır.
@@ -29,16 +45,15 @@ Platform, son teknoloji evrişimli sinir ağlarını **Gradient-weighted Class A
 <tr>
 <td width="50%">
 
-### 🧠 Derin Öğrenme Modelleri
+### 🧠 Derin Öğrenme Modeli
 - **EfficientNet-B4** — Compound Scaling mimarisi ile 4 sınıflı OCT sınıflandırmada **%99+ doğruluk** (CNV, DME, DRUSEN, NORMAL)
-- **Swin-V2 + SupCon** *(yakında)* — Supervised Contrastive Learning ile Vision Transformer, 3 sınıflı sınıflandırma (AMD, DME, NORMAL)
 
 </td>
 <td width="50%">
 
 ### 🔥 Açıklanabilir Yapay Zekâ (XAI)
 - **Hook tabanlı Grad-CAM** — Saf PyTorch implementasyonu (sıfır harici bağımlılık)
-- Hem **CNN** (4D tensör) hem **Transformer** (3D token) mimarilerini destekler
+- **CNN** (4D tensör) mimarisi için optimize edilmiş
 - **JET colormap** ile ısı haritası görselleştirmesi — patolojik bölgeleri vurgular
 
 </td>
@@ -74,8 +89,7 @@ retinal-amd-decision-support/
 │                                 # Premium arayüz, çıkarım pipeline'ı, interaktif grafikler
 │
 ├── models/
-│   ├── __init__.py              # Model tanımları ve ağırlık yükleme
-│   │                             # EfficientNet-B4, Swin-V2-B mimarileri
+│   ├── __init__.py              # Model tanımları ve ağırlık yükleme (EfficientNet-B4)
 │   └── *.pth                    # Önceden eğitilmiş model ağırlıkları
 │
 ├── utils/
@@ -140,16 +154,16 @@ Uygulama `http://localhost:8501` adresinde başlayacaktır.
 | Adım | İşlem | Açıklama |
 |------|-------|----------|
 | **1** | 📤 Görüntü Yükle | Yükleme alanından retinal OCT görüntüsü seçin (JPG/PNG) |
-| **2** | 🧠 Model Seç | Kenar çubuğundan aktif modeli seçin *(EfficientNet-B4 aktif, Swin-V2 yakında)* |
+| **2** | 🧠 Model Seç | Kenar çubuğundan aktif modeli seçin *(EfficientNet-B4)* |
 | **3** | 🔬 Analiz Başlat | **"Analizi Başlat"** butonuna tıklayarak çıkarım + Grad-CAM işlemini tetikleyin |
 | **4** | 📊 Sonuçları İncele | Tahmin, güven grafiği, Grad-CAM overlay ve klinik raporu inceleyin |
 | **5** | 📄 PDF İndir | Analiz sonuçlarını profesyonel PDF raporu olarak indirin |
 
 ---
 
-## 🧠 Modeller
+## 🧠 Model Detayları
 
-### EfficientNet-B4 (Aktif)
+### EfficientNet-B4
 
 | Özellik | Detay |
 |---------|-------|
@@ -157,18 +171,8 @@ Uygulama `http://localhost:8501` adresinde başlayacaktır.
 | **Sınıflar** | CNV · DME · DRUSEN · NORMAL |
 | **Giriş Boyutu** | 224 × 224 px |
 | **Normalizasyon** | ImageNet (μ=[0.485, 0.456, 0.406], σ=[0.229, 0.224, 0.225]) |
-| **Doğruluk** | Validasyon setinde **%99+** |
+| **Doğruluk** | Validasyon setinde **%99.17** |
 | **Grad-CAM Hedefi** | `model.features[-1]` (son özellik çıkarma bloğu) |
-
-### Swin-V2-B + SupCon (Yakında)
-
-| Özellik | Detay |
-|---------|-------|
-| **Mimari** | Swin Transformer V2-B (dondurulmuş omurga) |
-| **Eğitim** | Supervised Contrastive Learning |
-| **Sınıflar** | AMD · DME · NORMAL |
-| **Not** | AMD sınıfı CNV + DRUSEN alt tiplerini birleştirir |
-| **Grad-CAM Hedefi** | `model.norm` (normalizasyon katmanı) |
 
 ---
 
