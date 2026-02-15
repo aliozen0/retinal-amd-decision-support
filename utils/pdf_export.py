@@ -12,7 +12,10 @@ import tempfile
 import numpy as np
 from PIL import Image as PILImage
 from fpdf import FPDF
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
+
+# Turkiye saat dilimi (GMT+3)
+TZ_TR = timezone(timedelta(hours=3))
 from typing import List, Optional
 
 
@@ -95,7 +98,7 @@ class HumaMedPDF(FPDF):
         # Sag ust — tarih
         self._set("", 8)
         self.set_text_color(100, 116, 139)
-        date_str = datetime.now().strftime("%d.%m.%Y - %H:%M")
+        date_str = datetime.now(TZ_TR).strftime("%d.%m.%Y - %H:%M")
         self.cell(0, 8, date_str, align="R")
         self.ln(6)
 
@@ -174,7 +177,7 @@ def generate_pdf_report(
         ("Tahmin Edilen Tani", predicted_class),
         ("Guven Orani", f"%{confidence * 100:.1f}"),
         ("Sinif Sayisi", str(len(class_names))),
-        ("Analiz Tarihi", datetime.now().strftime("%d.%m.%Y - %H:%M:%S")),
+        ("Analiz Tarihi", datetime.now(TZ_TR).strftime("%d.%m.%Y - %H:%M:%S")),
     ]
 
     for label, value in info_data:

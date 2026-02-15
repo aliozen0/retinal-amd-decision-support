@@ -17,7 +17,10 @@ import numpy as np
 from PIL import Image
 import plotly.graph_objects as go
 import streamlit as st
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
+
+# Turkiye saat dilimi (GMT+3)
+TZ_TR = timezone(timedelta(hours=3))
 
 # ============================================================================
 # Proje modülleri
@@ -397,7 +400,7 @@ with st.spinner("⏳ Model yükleniyor..."):
 # Stat kartları
 classes = get_classes(model_type)
 model_display_name = "EfficientNet-B4" if model_type == "efficientnet_b4" else "Swin-V2"
-now = datetime.now().strftime("%d.%m.%Y")
+now = datetime.now(TZ_TR).strftime("%d.%m.%Y")
 
 st.markdown(f"""
 <div class="stat-grid">
@@ -580,7 +583,7 @@ if uploaded_file is not None:
                 report_text=report,
             )
 
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            timestamp = datetime.now(TZ_TR).strftime("%Y%m%d_%H%M%S")
             filename = f"HUMA-MED_Rapor_{predicted_class}_{timestamp}.pdf"
 
             col_dl1, col_dl2, col_dl3 = st.columns([1, 1, 1])
